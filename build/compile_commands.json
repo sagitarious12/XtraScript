@@ -1,7 +1,8 @@
 [
 {
-  "directory": "/home/rileyworthen/repos/personal/CPP/build",
-  "command": "/usr/bin/g++   -g -std=gnu++2a -o CMakeFiles/xtra.dir/src/main.cpp.o -c /home/rileyworthen/repos/personal/CPP/src/main.cpp",
-  "file": "/home/rileyworthen/repos/personal/CPP/src/main.cpp"
+  "directory": "/home/rileyworthen/repos/XtraScript/build",
+  "command": "/usr/bin/c++    -o CMakeFiles/xtra.dir/src/main.cpp.o -c /home/rileyworthen/repos/XtraScript/src/main.cpp",
+  "file": "/home/rileyworthen/repos/XtraScript/src/main.cpp",
+  "output": "CMakeFiles/xtra.dir/src/main.cpp.o"
 }
 ]

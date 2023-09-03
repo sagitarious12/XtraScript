@@ -5,6 +5,13 @@
 #include <optional>
 #include <iostream>
 
+template <typename Enumeration>
+auto as_integer(Enumeration const value)
+    -> typename std::underlying_type<Enumeration>::type
+{
+    return static_cast<typename std::underlying_type<Enumeration>::type>(value);
+};
+
 enum class TokenType { 
     int_lit,
     string_lit,
@@ -27,6 +34,30 @@ enum class TokenType {
     as,
     dot,
     quote,
+};
+
+std::array<std::string, 100> token_names = {
+    "Integer Literal",
+    "String Literal",
+    "Semi Colon",
+    "Open Parenthesis",
+    "Close Parenthesis",
+    "Open Brace",
+    "Close Brace",
+    "Identity",
+    "Equals",
+    "Plus",
+    "Comma",
+    "Function Start",
+    "Gives",
+    "Void Type",
+    "Int Type",
+    "String Type",
+    "Return Statement",
+    "Take",
+    "As",
+    "Dot",
+    "Quote"
 };
 
 

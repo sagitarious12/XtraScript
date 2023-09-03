@@ -47,5 +47,6 @@
     "streambuf": "cpp",
     "typeinfo": "cpp",
     "cstring": "cpp"
-  }
+  },
+  "cmake.sourceDirectory": "/home/rileyworthen/repos/XtraScript"
 }

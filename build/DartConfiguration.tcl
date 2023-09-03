@@ -4,17 +4,17 @@
 
 
 # Configuration directories and files
-SourceDirectory: /home/rileyworthen/repos/personal/CPP
-BuildDirectory: /home/rileyworthen/repos/personal/CPP/build
+SourceDirectory: /home/rileyworthen/repos/XtraScript
+BuildDirectory: /home/rileyworthen/repos/XtraScript/build
 
 # Where to place the cost data store
 CostDataFile: 
 
 # Site is something like machine.domain, i.e. pragmatic.crd
-Site: Rileys-Desktop
+Site: 5CG32210CY
 
 # Build name is osname-revision-compiler, i.e. Linux-2.4.2-2smp-c++
-BuildName: Linux-g++
+BuildName: Linux-c++
 
 # Subprojects
 LabelsForSubprojects: 
@@ -27,8 +27,8 @@ SubmitInactivityTimeout:
 NightlyStartTime: 00:00:00 EDT
 
 # Commands for the build/test/submit cycle
-ConfigureCommand: "/usr/bin/cmake" "/home/rileyworthen/repos/personal/CPP"
-MakeCommand: /usr/bin/cmake --build . --config "${CTEST_CONFIGURATION_TYPE}" -- -i
+ConfigureCommand: "/usr/bin/cmake" "/home/rileyworthen/repos/XtraScript"
+MakeCommand: /usr/bin/cmake --build . --config "${CTEST_CONFIGURATION_TYPE}"
 DefaultCTestConfigurationType: Release
 
 # version control
@@ -45,7 +45,7 @@ SVNOptions:
 SVNUpdateOptions: 
 
 # Git options
-GITCommand: 
+GITCommand: /usr/bin/git
 GITInitSubmodules: 
 GITUpdateOptions: 
 GITUpdateCustom: 
@@ -58,13 +58,13 @@ P4UpdateOptions:
 P4UpdateCustom: 
 
 # Generic update command
-UpdateCommand: 
+UpdateCommand: /usr/bin/git
 UpdateOptions: 
-UpdateType: 
+UpdateType: git
 
 # Compiler info
-Compiler: /usr/bin/g++
-CompilerVersion: 9.3.0
+Compiler: /usr/bin/c++
+CompilerVersion: 11.4.0
 
 # Dynamic analysis (MemCheck)
 PurifyCommand: 

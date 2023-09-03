@@ -96,8 +96,6 @@ public:
         return stmt_return_type;
     }
 
-
-
     std::optional<NodeFunctionArguments*> parse_function_args() {
         auto function_args = m_allocator.alloc<NodeFunctionArguments>();
         if (auto type = parse_statement_return_type()) {
@@ -113,16 +111,55 @@ public:
         return function_args;
     }
 
-    std::optional<NodeStatement*> parse_statement()
-    {
-        if (
-            peek().has_value() && peek().value().type == TokenType::take &&
+    bool is_take_statement() {
+        return peek().has_value() && peek().value().type == TokenType::take &&
             peek(1).has_value() && peek(1).value().type == TokenType::string_lit &&
             peek(2).has_value() && peek(2).value().type == TokenType::as &&
             peek(3).has_value() && peek(3).value().type == TokenType::ident &&
-            peek(4).has_value() && peek(4).value().type == TokenType::semi
-        ) {
-            consume();
+            peek(4).has_value() && peek(4).value().type == TokenType::semi;
+    }
+
+    bool is_function_start() {
+        return (
+                peek().has_value() && peek().value().type == TokenType::void_type ||
+                peek().has_value() && peek().value().type == TokenType::int_type ||
+                peek().has_value() && peek().value().type == TokenType::string_type ||
+                peek().has_value() && peek().value().type == TokenType::ident
+            ) &&
+            peek(1).has_value() && peek(1).value().type == TokenType::ident &&
+            peek(2).has_value() && peek(2).value().type == TokenType::function_start &&
+            peek(3).has_value() && peek(3).value().type == TokenType::open_paren;
+    }
+
+    bool is_variable_declaration() {
+        return (
+                peek().has_value() && peek().value().type == TokenType::void_type ||
+                peek().has_value() && peek().value().type == TokenType::int_type ||
+                peek().has_value() && peek().value().type == TokenType::string_type ||
+                peek().has_value() && peek().value().type == TokenType::ident
+            ) &&
+            peek(1).has_value() && peek(1).value().type == TokenType::ident &&
+            peek(2).has_value() && peek(2).value().type == TokenType::eq;
+    }
+
+    bool is_function_execution() {
+        return peek().has_value() && peek().value().type == TokenType::ident &&
+            peek(1).has_value() && peek(1).value().type == TokenType::open_paren;
+    }
+
+    bool is_function_builtin() {
+        return peek().value().value == "printc";
+    }
+
+    bool is_return_statement() {
+        return peek().has_value() && peek().value().type == TokenType::returns;
+    }
+
+    std::optional<NodeStatement*> parse_statement()
+    {
+        auto stmt = m_allocator.alloc<NodeStatement>();
+        if (is_take_statement()) {
+            try_consume(TokenType::take, "Invalid take statement. Expected 'take'");
             Token filepath = try_consume(TokenType::string_lit, "Invalid file path in take statement");
             try_consume(TokenType::as, "invalid take statement. Expected 'as'");
             Token fileIdentity = try_consume(TokenType::ident, "invalid take statement. Missing take file identity.");
@@ -131,8 +168,6 @@ public:
             if (programIt == programs.end()) {
 
                 std::string contents = m_file_reader.read_file(filepath.value.value().c_str());
-
-                std::cout << contents <<  std::endl;
 
                 Tokenizer tokenizer(std::move(contents));
                 std::vector<Token> tokens = tokenizer.tokenize();
@@ -145,7 +180,6 @@ public:
                     exit(EXIT_FAILURE);
                 }
                 
-                auto stmt = m_allocator.alloc<NodeStatement>();
                 if (program.has_value()) {
                     stmt->value = &program.value();
                 }
@@ -155,17 +189,7 @@ public:
                 // we have already import the file, we just need to use the right name for the import
             }
 
-        } else if (
-            (
-                peek().has_value() && peek().value().type == TokenType::void_type ||
-                peek().has_value() && peek().value().type == TokenType::int_type ||
-                peek().has_value() && peek().value().type == TokenType::string_type ||
-                peek().has_value() && peek().value().type == TokenType::ident
-            ) &&
-            peek(1).has_value() && peek(1).value().type == TokenType::ident &&
-            peek(2).has_value() && peek(2).value().type == TokenType::function_start &&
-            peek(3).has_value() && peek(3).value().type == TokenType::open_paren
-        ) {
+        } else if (is_function_start()) {
             auto stmt_definition = m_allocator.alloc<NodeStatementDefinition>();
             if (auto return_type = parse_statement_return_type()) {
                 stmt_definition->returns = return_type.value();
@@ -187,13 +211,64 @@ public:
                 try_consume(TokenType::close_paren);
                 try_consume(TokenType::open_brace);
                 
-                auto stmt = m_allocator.alloc<NodeStatement>();
                 stmt->value = stmt_definition;
                 return stmt;
             } else { // no function arguments
 
             }
-        } else {
+        } 
+        else if (is_function_execution()) {
+            if (is_function_builtin()) {
+                // builtin functions need their own parse
+                if (peek().value().value == "printc") {
+                    try_consume(TokenType::ident);
+                    try_consume(TokenType::open_paren);
+                    auto stmt_builtin_function = m_allocator.alloc<NodeStatementPrintConsole>();
+                    if (auto print_expr = parse_expression()) {
+                        stmt_builtin_function->expr = print_expr.value();
+                    }
+                    try_consume(TokenType::close_paren, "Invalid Function Call, Expected ')'");
+                    try_consume(TokenType::semi, "Invalid statement, Missing ';'");
+                    if (auto close_brace = try_consume(TokenType::close_brace)) {
+                        try_consume(TokenType::semi, "Invalid Scope, Expected ';'");
+                    }
+                    stmt->value = stmt_builtin_function;
+                    return stmt;
+                }
+            } else {
+
+                // function execution is just a user created
+            }
+        }
+        else if (is_variable_declaration()) {
+            auto stmt_definition = m_allocator.alloc<NodeStatementDefinition>();
+            if (auto var_type = parse_statement_return_type()) {
+                stmt_definition->returns = var_type.value();
+            }
+            if (auto ident = try_consume(TokenType::ident)) {
+                stmt_definition->ident = ident.value();
+            }
+            if (auto expr = parse_expression()) {
+                stmt_definition->expr = expr.value();
+            }
+            stmt->value = stmt_definition;
+            try_consume(TokenType::semi, "Invalid Variable Declaration, Expected ';'");
+            return stmt;
+        }
+        else if (is_return_statement()) {
+            try_consume(TokenType::returns);
+            auto return_expr = m_allocator.alloc<NodeStatementReturn>();
+            if (auto expr = parse_expression()) {
+                return_expr->expr = expr.value();
+            }
+            stmt->value = return_expr;
+            try_consume(TokenType::semi, "Invalid Return Statement, Expected ';'");
+            if (auto close_brace = try_consume(TokenType::close_brace)) {
+                try_consume(TokenType::semi, "Invalid Scope, Expected ';'");
+            }
+            return stmt;
+        }
+        else {
             return {};
         }
         // if (
@@ -237,9 +312,7 @@ public:
         //     stmt->var = stmt_let;
         //     return stmt;
         // }
-        // else {
-        //     return {};
-        // }
+
         return {};
     }
 
@@ -254,6 +327,7 @@ public:
             }
             else {
                 std::cerr << "Invalid statement" << std::endl;
+                std::cerr << "Invalid" << token_names.at(as_integer(peek().value().type)) << std::endl;
                 exit(EXIT_FAILURE);
             }
         }

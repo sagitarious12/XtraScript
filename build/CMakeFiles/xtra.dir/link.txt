@@ -1,1 +1,1 @@
-/usr/bin/g++ -g CMakeFiles/xtra.dir/src/main.cpp.o -o xtra 
+/usr/bin/c++ CMakeFiles/xtra.dir/src/main.cpp.o -o xtra 
