@@ -36,10 +36,17 @@ struct NodeTerm {
     > value;
 };
 
+struct NodeFunctionExecution {
+    std::vector<Token> dotNotations;
+    Token ident;
+    std::vector<Token> functionParams;
+};
+
 struct NodeExpression {
     std::variant<
       NodeTerm*, 
-      NodeBinaryExpression*
+      NodeBinaryExpression*,
+      NodeFunctionExecution*
     > value;
 };
 
@@ -66,6 +73,7 @@ struct NodeStatementDefinition {
     Token ident; // variable name
     NodeExpression* expr; // variable value, string value
     std::vector<NodeFunctionArguments*> args;
+    NodeFunctionExecution* functionCall;
 };
 
 struct NodeStatementTakeFilepath {
@@ -85,7 +93,8 @@ struct NodeStatement {
       NodeStatementDefinition*, 
       NodeStatementTake*,
       NodeStatementPrintConsole*,
-      NodeProgram*
+      NodeProgram*,
+      NodeFunctionExecution*
     > value;
 };
 

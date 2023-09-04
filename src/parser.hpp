@@ -111,6 +111,51 @@ public:
         return function_args;
     }
 
+    std::optional<NodeFunctionExecution*> parse_function_execution() {
+        auto stmt_function_execution = m_allocator.alloc<NodeFunctionExecution>();
+        while (peek(1).has_value() && peek(1).value().type == TokenType::dot) {
+            if (auto token = try_consume(TokenType::ident)) {
+                stmt_function_execution->dotNotations.push_back(token.value());
+            }
+            consume();
+        }
+        if (auto functionName = try_consume(TokenType::ident)) {
+            stmt_function_execution->ident = functionName.value();
+        }
+        try_consume(TokenType::open_paren, "Invalid Function Call, Expected '('");
+        while (peek().has_value() && peek().value().type == TokenType::ident) {
+            if (auto token = try_consume(TokenType::ident)) {
+                stmt_function_execution->functionParams.push_back(token.value());
+            }
+            try_consume(TokenType::comma);
+        }
+        try_consume(TokenType::close_paren, "Invalid Function Call, Expected ')'");
+        try_consume(TokenType::semi, "Missing Semicolon at end of function call");
+        try_parse_close_braces();
+        return stmt_function_execution;
+    }
+    
+    std::optional<NodeStatementPrintConsole*> parse_console_log() {
+        try_consume(TokenType::ident);
+        try_consume(TokenType::open_paren);
+        auto stmt_builtin_function = m_allocator.alloc<NodeStatementPrintConsole>();
+        if (auto print_expr = parse_expression()) {
+            stmt_builtin_function->expr = print_expr.value();
+        }
+        try_consume(TokenType::close_paren, "Invalid Function Call, Expected ')'");
+        try_consume(TokenType::semi, "Invalid statement, Missing ';'");
+        try_parse_close_braces();
+        return stmt_builtin_function;
+    }
+
+    bool try_parse_close_braces() {
+        if (auto close_brace = try_consume(TokenType::close_brace)) {
+            try_consume(TokenType::semi, "Invalid Scope, Expected ';'");
+            return true;
+        }
+        return false;
+    }
+
     bool is_take_statement() {
         return peek().has_value() && peek().value().type == TokenType::take &&
             peek(1).has_value() && peek(1).value().type == TokenType::string_lit &&
@@ -143,8 +188,14 @@ public:
     }
 
     bool is_function_execution() {
-        return peek().has_value() && peek().value().type == TokenType::ident &&
-            peek(1).has_value() && peek(1).value().type == TokenType::open_paren;
+        return (
+                peek().has_value() && peek().value().type == TokenType::ident &&
+                peek(1).has_value() && peek(1).value().type == TokenType::open_paren
+            ) ||
+            (
+                peek().has_value() && peek().value().type == TokenType::ident &&
+                peek(1).has_value() && peek(1).value().type == TokenType::dot
+            );
     }
 
     bool is_function_builtin() {
@@ -153,6 +204,11 @@ public:
 
     bool is_return_statement() {
         return peek().has_value() && peek().value().type == TokenType::returns;
+    }
+
+    bool is_dot_notation() {
+        return peek().has_value() && peek().value().type == TokenType::ident &&
+            peek(1).has_value() && peek(1).value().type == TokenType::dot;
     }
 
     std::optional<NodeStatement*> parse_statement()
@@ -210,34 +266,31 @@ public:
                 }
                 try_consume(TokenType::close_paren);
                 try_consume(TokenType::open_brace);
-                
+                try_parse_close_braces();
                 stmt->value = stmt_definition;
                 return stmt;
             } else { // no function arguments
-
+                stmt->value = stmt_definition;
+                
+                try_consume(TokenType::close_paren);
+                try_consume(TokenType::open_brace);
+                return stmt;
             }
         } 
         else if (is_function_execution()) {
             if (is_function_builtin()) {
                 // builtin functions need their own parse
                 if (peek().value().value == "printc") {
-                    try_consume(TokenType::ident);
-                    try_consume(TokenType::open_paren);
-                    auto stmt_builtin_function = m_allocator.alloc<NodeStatementPrintConsole>();
-                    if (auto print_expr = parse_expression()) {
-                        stmt_builtin_function->expr = print_expr.value();
-                    }
-                    try_consume(TokenType::close_paren, "Invalid Function Call, Expected ')'");
-                    try_consume(TokenType::semi, "Invalid statement, Missing ';'");
-                    if (auto close_brace = try_consume(TokenType::close_brace)) {
-                        try_consume(TokenType::semi, "Invalid Scope, Expected ';'");
-                    }
-                    stmt->value = stmt_builtin_function;
+                    auto stmt_builtin_function = parse_console_log();
+                    stmt->value = stmt_builtin_function.value();
                     return stmt;
                 }
+            } else if (is_dot_notation()) {
+                auto stmt_function_execution = parse_function_execution();
+                stmt->value = stmt_function_execution.value();
+                return stmt;
             } else {
-
-                // function execution is just a user created
+                return {};
             }
         }
         else if (is_variable_declaration()) {
@@ -248,12 +301,23 @@ public:
             if (auto ident = try_consume(TokenType::ident)) {
                 stmt_definition->ident = ident.value();
             }
-            if (auto expr = parse_expression()) {
-                stmt_definition->expr = expr.value();
+            try_consume(TokenType::eq, "Invalid Variable Declaration, Expected '='");
+            if (is_dot_notation()) {
+                if (auto stmt_function_execution = parse_function_execution()) {
+                    stmt_definition->functionCall = stmt_function_execution.value();
+                }
+                try_parse_close_braces();
+                stmt->value = stmt_definition;
+                return stmt;
+            } else {
+                if (auto expr = parse_expression()) {
+                    stmt_definition->expr = expr.value();
+                }
+                stmt->value = stmt_definition;
+                try_consume(TokenType::semi, "Invalid Variable Declaration, Expected ';'");
+                try_parse_close_braces();
+                return stmt;
             }
-            stmt->value = stmt_definition;
-            try_consume(TokenType::semi, "Invalid Variable Declaration, Expected ';'");
-            return stmt;
         }
         else if (is_return_statement()) {
             try_consume(TokenType::returns);
@@ -268,6 +332,7 @@ public:
             }
             return stmt;
         }
+        
         else {
             return {};
         }
@@ -327,7 +392,11 @@ public:
             }
             else {
                 std::cerr << "Invalid statement" << std::endl;
-                std::cerr << "Invalid" << token_names.at(as_integer(peek().value().type)) << std::endl;
+                std::cerr << "Invalid " << token_names.at(as_integer(peek().value().type)) << std::endl;
+                if (peek().value().type == TokenType::ident) {
+                    auto value = try_consume(TokenType::ident).value();
+                    std::cerr << value.value.value_or("default") << std::endl;
+                }
                 exit(EXIT_FAILURE);
             }
         }

@@ -5,6 +5,10 @@
 #include <fstream>
 #include <cstring>
 
+// TODO make the file reader return a struct
+// the struct will be a map of both 
+// std::string and int for lineNumber
+
 class Files {
 public:
   std::string read_file(const char* path) {

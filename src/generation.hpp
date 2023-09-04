@@ -38,7 +38,7 @@ public:
             void operator()(const NodeBinaryExpression* bin_expr) const {
             }
 
-            void operator()(const std::vector<NodeStatement*> node_stmts) const {
+            void operator()(const NodeFunctionExecution* node_stmts) const {
 
             }
         };
@@ -67,6 +67,10 @@ public:
             }
 
             void operator()(const NodeProgram* stmt_program) const {
+
+            }
+
+            void operator()(const NodeFunctionExecution* stmt_function_execution) const {
 
             }
         };
