@@ -1,11 +1,15 @@
+takes "./helpers/helper.xs" as Helper;
 takes "./another.xs" as Another;
 
 Int x = 1;
 Int y = 2;
-String helloWorld = "hello world";
+String hello = "hello";
+String world = "world";
 
 Void main => () {
-  Another.log(helloWorld);
-  Int added = Another.add(x, y);
-  Another.log(added);
+  String concatenated = Helper.Concat(hello, world);
+  Helper.log(concatenated);
+  Int added = Helper.add(x, y);
+  Helper.log(added);
+  Another.doNothingElse();
 };

@@ -3,9 +3,14 @@
 #include <optional>
 #include <sstream>
 #include <vector>
+#include <filesystem>
 
 #include "./generation.hpp"
 #include "./file_reader.hpp"
+
+std::string path() {
+    return std::filesystem::current_path().string();
+}
 
 int main(int argc, char* argv[])
 {
@@ -21,7 +26,11 @@ int main(int argc, char* argv[])
     Tokenizer tokenizer(std::move(contents));
     std::vector<Token> tokens = tokenizer.tokenize();
 
-    Parser parser(std::move(tokens), files);
+    std::map<std::string, std::string> programs;
+
+    programs.insert({ argv[1], "main" });
+
+    Parser parser(std::move(tokens), files, programs);
     std::optional<NodeProgram> program = parser.parse_program("main", argv[1]);
 
     if (!program.has_value()) {
@@ -29,16 +38,17 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    // Generator generator(program.value());
-    // {
-    //     std::fstream file("build.js", std::ios::out);
-    //     file << generator.generate_program();
-    // }
+    Generator generator(program.value());
+    {
+        std::fstream file("../build/xtra.js", std::ios::out);
+        file << generator.generate_program();
+        file.close();
+    }
 
-    // system("nasm -felf64 out.asm");
-    // system("ld -o out out.o");
-
-    std::cout << "breakpoint" << std::endl;
+    std::stringstream jsPathBuf;
+    jsPathBuf << "node " << argv[0] << ".js";
+    std::string  jsPath = jsPathBuf.str();
+    system(jsPath.c_str());
 
     return EXIT_SUCCESS;
 }

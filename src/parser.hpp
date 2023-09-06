@@ -2,6 +2,7 @@
 
 #include <variant>
 #include <map>
+#include <functional>
 
 #include "./arena.hpp"
 #include "tokenization.hpp"
@@ -12,10 +13,15 @@
 
 class Parser {
 public:
-    inline explicit Parser(std::vector<Token> tokens, Files fileReader)
+    inline explicit Parser(
+        std::vector<Token> tokens, 
+        Files fileReader, 
+        std::map<std::string, std::string> programs
+    )
         : m_tokens(std::move(tokens))
         , m_allocator(1024 * 1024 * 4) // 4 mb
         , m_file_reader(fileReader)
+        , m_programs(programs)
     {}
 
     std::optional<NodeTerm*> parse_term()
@@ -46,6 +52,21 @@ public:
         }
     }
 
+    std::optional<Token> test_import_rename(std::optional<Token> token) {
+        std::map<std::string, std::string>::iterator it;
+        if (token.has_value()) {
+            auto it = m_import_renames.find(token.value().value.value());
+            if (it != m_import_renames.end()) {
+                Token new_token { .type = token.value().type, .value = m_import_renames[token.value().value.value()] };
+                return new_token;
+            } else {
+                return token;
+            }
+        } else {
+            return token;
+        }
+    }
+
     std::optional<NodeExpression*> parse_expression()
     {
         if (auto term = parse_term()) {
@@ -57,7 +78,26 @@ public:
                 bin_expr_add->lhs = lhs_expr;
                 if (auto rhs = parse_expression()) {
                     bin_expr_add->rhs = rhs.value();
-                    bin_expr->add = bin_expr_add;
+                    bin_expr->bin_expr = bin_expr_add;
+                    auto expr = m_allocator.alloc<NodeExpression>();
+                    expr->value = bin_expr;
+                    return expr;
+                }
+                else {
+                    std::cerr << "Expected expression" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else 
+            if (try_consume(TokenType::plus).has_value()) {
+                auto bin_expr = m_allocator.alloc<NodeBinaryExpression>();
+                auto bin_expr_sub = m_allocator.alloc<NodeBinaryExpressionSub>();
+                auto lhs_expr = m_allocator.alloc<NodeExpression>();
+                lhs_expr->value = term.value();
+                bin_expr_sub->lhs = lhs_expr;
+                if (auto rhs = parse_expression()) {
+                    bin_expr_sub->rhs = rhs.value();
+                    bin_expr->bin_expr = bin_expr_sub;
                     auto expr = m_allocator.alloc<NodeExpression>();
                     expr->value = bin_expr;
                     return expr;
@@ -115,7 +155,8 @@ public:
         auto stmt_function_execution = m_allocator.alloc<NodeFunctionExecution>();
         while (peek(1).has_value() && peek(1).value().type == TokenType::dot) {
             if (auto token = try_consume(TokenType::ident)) {
-                stmt_function_execution->dotNotations.push_back(token.value());
+                auto new_token = test_import_rename(token);
+                stmt_function_execution->dotNotations.push_back(new_token.value());
             }
             consume();
         }
@@ -123,15 +164,12 @@ public:
             stmt_function_execution->ident = functionName.value();
         }
         try_consume(TokenType::open_paren, "Invalid Function Call, Expected '('");
-        while (peek().has_value() && peek().value().type == TokenType::ident) {
-            if (auto token = try_consume(TokenType::ident)) {
-                stmt_function_execution->functionParams.push_back(token.value());
-            }
+        while (auto term = parse_term()) {
+            stmt_function_execution->functionParams.push_back(term.value());
             try_consume(TokenType::comma);
         }
         try_consume(TokenType::close_paren, "Invalid Function Call, Expected ')'");
         try_consume(TokenType::semi, "Missing Semicolon at end of function call");
-        try_parse_close_braces();
         return stmt_function_execution;
     }
     
@@ -144,7 +182,6 @@ public:
         }
         try_consume(TokenType::close_paren, "Invalid Function Call, Expected ')'");
         try_consume(TokenType::semi, "Invalid statement, Missing ';'");
-        try_parse_close_braces();
         return stmt_builtin_function;
     }
 
@@ -211,6 +248,11 @@ public:
             peek(1).has_value() && peek(1).value().type == TokenType::dot;
     }
 
+    bool is_function_end() {
+        return peek().has_value() && peek().value().type == TokenType::close_brace &&
+            peek(1).has_value() && peek(1).value().type == TokenType::semi;
+    }
+
     std::optional<NodeStatement*> parse_statement()
     {
         auto stmt = m_allocator.alloc<NodeStatement>();
@@ -220,32 +262,47 @@ public:
             try_consume(TokenType::as, "invalid take statement. Expected 'as'");
             Token fileIdentity = try_consume(TokenType::ident, "invalid take statement. Missing take file identity.");
             try_consume(TokenType::semi, "Missing Semi Colon in take statement");
-            programIt = programs.find(filepath.value.value());
-            if (programIt == programs.end()) {
+            std::string fullFilePath = m_file_reader.get_base_filepath(filepath.value.value());
+            programIt = m_programs.find(fullFilePath);
+            if (programIt == m_programs.end()) {
+
+                m_programs.insert({ fullFilePath, fileIdentity.value.value() });
 
                 std::string contents = m_file_reader.read_file(filepath.value.value().c_str());
 
+                if (contents == "") {
+                    std::cerr << "Could Not Find The File " << fullFilePath << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+
                 Tokenizer tokenizer(std::move(contents));
                 std::vector<Token> tokens = tokenizer.tokenize();
-                
-                Parser parser(std::move(tokens), m_file_reader);
-                std::optional<NodeProgram> program = parser.parse_program(fileIdentity.value.value(), filepath.value.value());
-
+                std::string tempCurrentProgram = m_current_program;
+                std::optional<NodeStatementTake> program = parse_file(fileIdentity.value.value(), filepath.value.value(), tokens);
+                m_current_program = tempCurrentProgram;
                 if (!program.has_value()) {
                     std::cerr << "Invalid program at " << filepath.value.value() << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 
                 if (program.has_value()) {
-                    stmt->value = &program.value();
+                    auto prog = m_allocator.alloc<NodeStatementTake>();
+                    prog->stmts = program.value().stmts;
+                    prog->programFilePath = program.value().programFilePath;
+                    prog->programName = program.value().programName;
+                    stmt->value = prog;
                 }
                 return stmt;
             } else {
-                // TODO
-                // we have already import the file, we just need to use the right name for the import
+                std::cout << m_programs[fullFilePath] << std::endl;
+                std::cout << fileIdentity.value.value() << std::endl;
+                m_import_renames.insert({ fileIdentity.value.value(), m_programs[fullFilePath] });
+                auto discard = m_allocator.alloc<NodeDiscard>();
+                stmt->value = discard;
+                return stmt;
             }
-
-        } else if (is_function_start()) {
+        } 
+        else if (is_function_start()) {
             auto stmt_definition = m_allocator.alloc<NodeStatementDefinition>();
             if (auto return_type = parse_statement_return_type()) {
                 stmt_definition->returns = return_type.value();
@@ -266,7 +323,6 @@ public:
                 }
                 try_consume(TokenType::close_paren);
                 try_consume(TokenType::open_brace);
-                try_parse_close_braces();
                 stmt->value = stmt_definition;
                 return stmt;
             } else { // no function arguments
@@ -306,7 +362,6 @@ public:
                 if (auto stmt_function_execution = parse_function_execution()) {
                     stmt_definition->functionCall = stmt_function_execution.value();
                 }
-                try_parse_close_braces();
                 stmt->value = stmt_definition;
                 return stmt;
             } else {
@@ -315,7 +370,6 @@ public:
                 }
                 stmt->value = stmt_definition;
                 try_consume(TokenType::semi, "Invalid Variable Declaration, Expected ';'");
-                try_parse_close_braces();
                 return stmt;
             }
         }
@@ -327,65 +381,73 @@ public:
             }
             stmt->value = return_expr;
             try_consume(TokenType::semi, "Invalid Return Statement, Expected ';'");
-            if (auto close_brace = try_consume(TokenType::close_brace)) {
-                try_consume(TokenType::semi, "Invalid Scope, Expected ';'");
+            return stmt;
+        }
+        else if (is_function_end()) {
+            if (auto closed = try_parse_close_braces()) {
+                auto func_end = m_allocator.alloc<NodeFunctionEnd>();
+                func_end->end = !peek().has_value();
+
+                if (m_current_program == "main") {
+                    func_end->isSelfCalling = true;
+                } else {
+                    func_end->isSelfCalling = false;
+                }
+
+                stmt->value = func_end;
             }
             return stmt;
         }
-        
         else {
             return {};
         }
-        // if (
-        //     peek().value().type == TokenType::exit && peek(1).has_value()
-        //     && peek(1).value().type == TokenType::open_paren
-        // ) {
-        //     consume();
-        //     consume();
-        //     auto stmt_exit = m_allocator.alloc<NodeStatementExit>();
-        //     if (auto node_expr = parse_expr()) {
-        //         stmt_exit->expr = node_expr.value();
-        //     }
-        //     else {
-        //         std::cerr << "Invalid expression" << std::endl;
-        //         exit(EXIT_FAILURE);
-        //     }
-        //     try_consume(TokenType::close_paren, "Expected `)`");
-        //     try_consume(TokenType::semi, "Expected `;`");
-        //     auto stmt = m_allocator.alloc<NodeStatement>();
-        //     stmt->var = stmt_exit;
-        //     return stmt;
-        // }
-        // else if (
-        //     peek().has_value() && peek().value().type == TokenType::let && peek(1).has_value()
-        //     && peek(1).value().type == TokenType::ident && peek(2).has_value()
-        //     && peek(2).value().type == TokenType::eq
-        // ) {
-        //     consume();
-        //     auto stmt_let = m_allocator.alloc<NodeStatementLet>();
-        //     stmt_let->ident = consume();
-        //     consume();
-        //     if (auto expr = parse_expr()) {
-        //         stmt_let->expr = expr.value();
-        //     }
-        //     else {
-        //         std::cerr << "Invalid expression" << std::endl;
-        //         exit(EXIT_FAILURE);
-        //     }
-        //     try_consume(TokenType::semi, "Expected `;`");
-        //     auto stmt = m_allocator.alloc<NodeStatement>();
-        //     stmt->var = stmt_let;
-        //     return stmt;
-        // }
 
         return {};
+    }
+
+    std::optional<NodeStatementTake> parse_file(std::string name, std::string filePath, std::vector<Token> tokens)
+    {
+        std::vector<Token> tempCurrentTokens = m_tokens;
+        std::map<std::string, std::string> current_renames = m_import_renames;
+        m_import_renames.clear();
+        int tempCurrentIndex = m_index;
+        m_index = 0;
+        m_tokens = tokens;
+        NodeStatementTake prog;
+        m_current_program = name;
+        prog.programName = name;
+        prog.programFilePath = m_file_reader.get_base_filepath(filePath);
+        while (peek().has_value()) {
+            if (auto stmt = parse_statement()) {
+                if (auto discard = std::holds_alternative<NodeDiscard*>(stmt.value()->value)) {
+                    continue;
+                }
+                prog.stmts.push_back(stmt.value());
+            }
+            else {
+                std::cerr << "Invalid statement" << std::endl;
+                std::cerr << "Invalid " << token_names.at(as_integer(peek().value().type)) << std::endl;
+                if (peek().value().type == TokenType::ident) {
+                    auto value = try_consume(TokenType::ident).value();
+                    std::cerr << value.value.value_or("default") << std::endl;
+                }
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        m_import_renames.clear();
+        m_import_renames = current_renames;
+        m_tokens = tempCurrentTokens;
+        m_index = tempCurrentIndex;
+        return prog;
     }
 
     std::optional<NodeProgram> parse_program(std::string name, std::string filePath)
     {
         NodeProgram prog;
+        m_current_program = name;
         prog.programName = name;
-        prog.programFilePath = filePath;
+        prog.programFilePath = m_file_reader.get_base_filepath(filePath);
         while (peek().has_value()) {
             if (auto stmt = parse_statement()) {
                 prog.stmts.push_back(stmt.value());
@@ -400,7 +462,64 @@ public:
                 exit(EXIT_FAILURE);
             }
         }
-        return prog;
+
+        NodeProgram finalProgram = removeTakeStatements(prog);
+
+        return finalProgram;
+    }
+
+    NodeProgram removeTakeStatements(NodeProgram prog) {
+        std::vector<NodeStatementTake*> takes;
+
+        for (int i = 0; i < prog.stmts.size(); i++) {
+            auto statement = prog.stmts.at(i);
+            if (std::holds_alternative<NodeStatementTake*>(statement->value)) {
+                if (auto node_take = std::get<NodeStatementTake*>(statement->value)) {
+                    std::vector<NodeStatementTake*> embeddedTakes = removeTakeStatements(node_take);
+                    takes.push_back(node_take);
+                    for(NodeStatementTake* take : embeddedTakes) {
+                        takes.push_back(take);
+                    }
+                    prog.stmts.erase(prog.stmts.begin() + i);
+                    i--;
+                }
+            }
+        }
+
+        NodeProgram program;
+
+        for (NodeStatementTake* take : takes) {
+            auto statement = m_allocator.alloc<NodeStatement>();
+            statement->value = take;
+            program.stmts.push_back(statement);
+        }
+
+        for (NodeStatement* statement : prog.stmts) {
+            program.stmts.push_back(statement);
+        } 
+
+        program.programName = prog.programName;
+        program.programFilePath = prog.programFilePath;
+
+        return program;
+    }
+
+    std::vector<NodeStatementTake*> removeTakeStatements(NodeStatementTake* take) {
+        std::vector<NodeStatementTake*> takes;
+        for (int i = 0; i < take->stmts.size(); i++) {
+            if (std::holds_alternative<NodeStatementTake*>(take->stmts.at(i)->value)) {
+                if (auto node_take = std::get<NodeStatementTake*>(take->stmts.at(i)->value)) {
+                    auto embeddedTakes = removeTakeStatements(node_take);
+                    takes.push_back(node_take);
+                    for (NodeStatementTake* take : embeddedTakes) {
+                        takes.push_back(take);
+                    }
+                    take->stmts.erase(take->stmts.begin() + i);
+                    i--;
+                }
+            }
+        }
+        return takes;
     }
 
 private:
@@ -440,10 +559,13 @@ private:
         }
     }
 
-    std::map<std::string, std::string> programs;
+    std::map<std::string, std::string> m_programs;
     std::map<std::string, std::string>::iterator programIt;
-    const std::vector<Token> m_tokens;
+    std::map<std::string, std::string> m_import_renames;
+    std::vector<Token> m_tokens;
     size_t m_index = 0;
     ArenaAllocator m_allocator;
     Files m_file_reader;
+    std::string m_current_program;
+
 };

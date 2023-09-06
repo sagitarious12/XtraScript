@@ -1,7 +1,6 @@
-Void log => (Any arg) {
-  printc(arg);
-};
+takes "./helpers/helper.xs" as Something;
 
-Int add => (Int a, Int b) {
-  return a + b;
+Void doNothingElse => () {
+    String value = Something.Concat("Hello", "World");
+    Something.log(value);
 };

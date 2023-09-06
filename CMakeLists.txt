@@ -6,6 +6,9 @@ enable_testing()
 
 add_executable(xtra src/main.cpp)
 
+SET(GCC_COVERAGE_COMPILE_FLAGS "-g")
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)

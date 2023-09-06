@@ -1,0 +1,3 @@
+Void doNothing => () {
+    printc("hello");
+};

@@ -4,6 +4,8 @@
 
 #include "tokenization.hpp"
 
+struct NodeDiscard {};
+
 struct NodeTermIntLit {
     Token int_lit;
 };
@@ -24,8 +26,16 @@ struct NodeBinaryExpressionAdd {
     NodeExpression* rhs;
 };
 
+struct NodeBinaryExpressionSub {
+    NodeExpression* lhs;
+    NodeExpression* rhs;
+};
+
 struct NodeBinaryExpression {
-    NodeBinaryExpressionAdd* add;
+    std::variant<
+        NodeBinaryExpressionAdd*,
+        NodeBinaryExpressionSub*
+    > bin_expr;
 };
 
 struct NodeTerm {
@@ -39,7 +49,12 @@ struct NodeTerm {
 struct NodeFunctionExecution {
     std::vector<Token> dotNotations;
     Token ident;
-    std::vector<Token> functionParams;
+    std::vector<NodeTerm*> functionParams;
+};
+
+struct NodeFunctionEnd {
+    bool end;
+    bool isSelfCalling;
 };
 
 struct NodeExpression {
@@ -80,12 +95,13 @@ struct NodeStatementTakeFilepath {
     NodeExpression* expr;
 };
 
-struct NodeStatementTake {
-    NodeStatementTakeFilepath* filepath;
-    Token ident;
-};
+struct NodeStatement;
 
-struct NodeProgram;
+struct NodeStatementTake {
+    std::vector<NodeStatement*> stmts;
+    std::string programName;
+    std::string programFilePath;
+};
 
 struct NodeStatement {
     std::variant<
@@ -93,8 +109,9 @@ struct NodeStatement {
       NodeStatementDefinition*, 
       NodeStatementTake*,
       NodeStatementPrintConsole*,
-      NodeProgram*,
-      NodeFunctionExecution*
+      NodeFunctionExecution*,
+      NodeFunctionEnd*,
+      NodeDiscard*
     > value;
 };
 

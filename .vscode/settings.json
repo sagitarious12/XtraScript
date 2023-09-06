@@ -46,7 +46,15 @@
     "stdexcept": "cpp",
     "streambuf": "cpp",
     "typeinfo": "cpp",
-    "cstring": "cpp"
+    "cstring": "cpp",
+    "compare": "cpp",
+    "concepts": "cpp",
+    "numbers": "cpp",
+    "chrono": "cpp",
+    "codecvt": "cpp",
+    "ctime": "cpp",
+    "ratio": "cpp",
+    "iomanip": "cpp"
   },
   "cmake.sourceDirectory": "/home/rileyworthen/repos/XtraScript"
 }
