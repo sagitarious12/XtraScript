@@ -204,6 +204,11 @@ public:
                 consume();
                 continue;
             }
+            else if (peek().value() == '-') {
+                consume();
+                tokens.push_back({ .type = TokenType::minus });
+                continue;
+            }
             else {
                 std::cerr << "You messed up! Error Found at" << std::endl;
                 std::cerr << peek().value() << std::endl;

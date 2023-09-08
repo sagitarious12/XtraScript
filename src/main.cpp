@@ -6,7 +6,7 @@
 #include <filesystem>
 
 #include "./generation.hpp"
-#include "./file_reader.hpp"
+#include "./parser/parse_program.hpp"
 
 std::string path() {
     return std::filesystem::current_path().string();
@@ -30,9 +30,10 @@ int main(int argc, char* argv[])
 
     programs.insert({ argv[1], "main" });
 
-    Parser parser(std::move(tokens), files, programs);
-    std::optional<NodeProgram> program = parser.parse_program("main", argv[1]);
-
+    ParentParser parentParser(std::move(tokens), files, programs);
+    ParseProgram parser;
+    std::optional<NodeProgram> program = parser.parse_program("main", argv[1], &parentParser);
+    
     if (!program.has_value()) {
         std::cerr << "Invalid program" << std::endl;
         exit(EXIT_FAILURE);
@@ -40,8 +41,17 @@ int main(int argc, char* argv[])
 
     Generator generator(program.value());
     {
-        std::fstream file("../build/xtra.js", std::ios::out);
-        file << generator.generate_program();
+        std::stringstream buildPath;
+        buildPath << argv[0] << ".js";
+        std::ofstream file;
+        file.open(buildPath.str(), std::ios::trunc);
+        if (!file.is_open()) {
+            std::cerr << "Error opening file" << std::endl;
+        }
+        std::string generated_program = generator.generate_program();
+        if (!(file << generated_program)) {
+            std::cerr << "Error writing to file" << std::endl;
+        }
         file.close();
     }
 

@@ -89,7 +89,7 @@ public:
                 }
             }
             else 
-            if (try_consume(TokenType::plus).has_value()) {
+            if (try_consume(TokenType::minus).has_value()) {
                 auto bin_expr = m_allocator.alloc<NodeBinaryExpression>();
                 auto bin_expr_sub = m_allocator.alloc<NodeBinaryExpressionSub>();
                 auto lhs_expr = m_allocator.alloc<NodeExpression>();
@@ -567,5 +567,4 @@ private:
     ArenaAllocator m_allocator;
     Files m_file_reader;
     std::string m_current_program;
-
 };
