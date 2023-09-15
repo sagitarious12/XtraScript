@@ -4,8 +4,9 @@
 #include <optional>
 #include <map>
 
-#include "../tokenization.hpp"
-#include "../nodes.hpp"
+#include "../tokenize/tokenization.hpp"
+#include "../tokenize/html_tokenization.hpp"
+#include "nodes.hpp"
 #include "../file_reader.hpp"
 #include "../arena.hpp"
 
@@ -21,20 +22,71 @@ public:
         , m_programs(programs)
         , m_allocator(1024 * 1024 * 4)
     {}
+
+    void set_hard_consume(bool value) {
+        m_hard_consume = value;
+    }
+
+    void set_peek_index(int value) {
+        m_peek_index = value;
+    }
     
     [[nodiscard]] inline std::optional<Token> peek(int offset = 0) const
     {
-        if (m_index + offset >= m_tokens.size()) {
-            return {};
+        if (m_hard_consume) {
+            if (m_index + offset >= m_tokens.size()) {
+                return {};
+            }
+            else {
+                return m_tokens.at(m_index + offset);
+            }
+        } else {
+            if (m_index + offset + m_peek_index >= m_tokens.size()) {
+                return {};
+            }
+            else {
+                return m_tokens.at(m_index + offset + m_peek_index);
+            }
         }
-        else {
-            return m_tokens.at(m_index + offset);
+    }
+
+    inline void peek_assert(TokenType type, int offset = 0, const std::string& err_msg = "") const {
+        if (m_hard_consume) {
+            if (m_index + offset >= m_tokens.size()) {
+                std::cerr << "Peek Assert Failed With No More Tokens" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            if (!peek(offset).has_value()) {
+                std::cerr << "Peek Asset Failed With No Token Value" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            if (peek(offset).has_value() && peek(offset).value().type != type) {
+                std::cerr << err_msg << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            if (m_index + offset + m_peek_index >= m_tokens.size()) {
+                std::cerr << "Peek Assert Failed With No More Tokens" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            if (!peek(offset + m_peek_index).has_value()) {
+                std::cerr << "Peek Asset Failed With No Token Value" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            if (peek(offset + m_peek_index).has_value() && peek(offset).value().type != type) {
+                std::cerr << err_msg << std::endl;
+                exit(EXIT_FAILURE);
+            }
         }
     }
 
     inline Token consume()
     {
-        return m_tokens.at(m_index++);
+        if (m_hard_consume) {
+            return m_tokens.at(m_index++);
+        } else {
+            return m_tokens.at(m_index + m_peek_index++);
+        }
     }
 
     inline Token try_consume(TokenType type, const std::string& err_msg)
@@ -81,6 +133,8 @@ public:
     Files m_file_reader;
     std::string m_current_program;
     ArenaAllocator m_allocator;
+    bool m_hard_consume = true;
+    int m_peek_index = 0;
 };
 
 class ParseStatement {
@@ -91,4 +145,25 @@ public:
 class ParseFile {
 public:
     std::optional<NodeStatementTake*> parseNode(ParentParser* parent, std::string name, std::string filePath, std::vector<Token> tokens);
+};
+
+class ParseExpression {
+public:
+    std::optional<NodeExpression*> parseNode(ParentParser* parent);
+private:
+    NodeExpression* parseExpression(
+        ParentParser* parent, 
+        NodeExpression* expr, 
+        std::optional<
+            std::variant<
+                NodeTerm*,
+                NodeFunctionExecution*
+            >
+        > term
+    );
+};
+
+class ParseTerm {
+public:
+    std::optional<NodeTerm*> parseNode(ParentParser* parent);
 };

@@ -39,26 +39,26 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    Generator generator(program.value());
-    {
-        std::stringstream buildPath;
-        buildPath << argv[0] << ".js";
-        std::ofstream file;
-        file.open(buildPath.str(), std::ios::trunc);
-        if (!file.is_open()) {
-            std::cerr << "Error opening file" << std::endl;
-        }
-        std::string generated_program = generator.generate_program();
-        if (!(file << generated_program)) {
-            std::cerr << "Error writing to file" << std::endl;
-        }
-        file.close();
-    }
+    std::cout << "BREAK" << std::endl;
 
-    std::stringstream jsPathBuf;
-    jsPathBuf << "node " << argv[0] << ".js";
-    std::string  jsPath = jsPathBuf.str();
-    system(jsPath.c_str());
+    // Generator generator(program.value());
+    // std::stringstream buildPath;
+    // buildPath << argv[0] << ".js";
+    // std::ofstream file;
+    // file.open(buildPath.str(), std::ios::trunc);
+    // if (!file.is_open()) {
+    //     std::cerr << "Error opening file" << std::endl;
+    // }
+    // std::string generated_program = generator.generate_program();
+    // if (!(file << generated_program)) {
+    //     std::cerr << "Error writing to file" << std::endl;
+    // }
+    // file.close();
+
+    // std::stringstream jsPathBuf;
+    // jsPathBuf << "node " << argv[0] << ".js";
+    // std::string  jsPath = jsPathBuf.str();
+    // system(jsPath.c_str());
 
     return EXIT_SUCCESS;
 }

@@ -24,10 +24,13 @@ public:
 
     bool is_function_start(ParentParser* parent) {
         return (
-                parent->peek().has_value() && parent->peek().value().type == TokenType::void_type ||
-                parent->peek().has_value() && parent->peek().value().type == TokenType::int_type ||
-                parent->peek().has_value() && parent->peek().value().type == TokenType::string_type ||
-                parent->peek().has_value() && parent->peek().value().type == TokenType::ident
+                parent->peek().has_value() && (
+                    parent->peek().value().type == TokenType::void_type ||
+                    parent->peek().value().type == TokenType::int_type ||
+                    parent->peek().value().type == TokenType::string_type ||
+                    parent->peek().value().type == TokenType::ident ||
+                    parent->peek().value().type == TokenType::boolean
+                )
             ) &&
             parent->peek(1).has_value() && parent->peek(1).value().type == TokenType::ident &&
             parent->peek(2).has_value() && parent->peek(2).value().type == TokenType::function_start &&
@@ -36,13 +39,25 @@ public:
 
     bool is_variable_declaration(ParentParser* parent) {
         return (
-                parent->peek().has_value() && parent->peek().value().type == TokenType::void_type ||
-                parent->peek().has_value() && parent->peek().value().type == TokenType::int_type ||
-                parent->peek().has_value() && parent->peek().value().type == TokenType::string_type ||
-                parent->peek().has_value() && parent->peek().value().type == TokenType::ident
-            ) &&
-            parent->peek(1).has_value() && parent->peek(1).value().type == TokenType::ident &&
-            parent->peek(2).has_value() && parent->peek(2).value().type == TokenType::eq;
+                (
+                    parent->peek().has_value() && (
+                        parent->peek().value().type == TokenType::void_type ||
+                        parent->peek().value().type == TokenType::int_type ||
+                        parent->peek().value().type == TokenType::string_type ||
+                        parent->peek().value().type == TokenType::ident ||
+                        parent->peek().value().type == TokenType::boolean
+                    )
+                ) &&
+                parent->peek(1).has_value() && parent->peek(1).value().type == TokenType::ident &&
+                (
+                    parent->peek(2).has_value() && parent->peek(2).value().type == TokenType::eq ||
+                    parent->peek(2).has_value() && parent->peek(2).value().type == TokenType::semi
+                )
+            ) ||
+            (
+                parent->peek(0).has_value() && parent->peek(0).value().type == TokenType::ident &&
+                parent->peek(1).has_value() && parent->peek(1).value().type == TokenType::eq
+            );
     }
 
     bool is_function_execution(ParentParser* parent) {
@@ -57,7 +72,11 @@ public:
     }
 
     bool is_function_builtin(ParentParser* parent) {
-        return parent->peek().has_value() && parent->peek().value().value == "printc";
+        return parent->peek().has_value() && 
+           (
+                parent->peek().value().value == "printc" ||
+                parent->peek().value().value == "Xtra"
+            );
     }
 
     bool is_return_statement(ParentParser* parent) {
@@ -72,5 +91,26 @@ public:
     bool is_function_end(ParentParser* parent) {
         return parent->peek().has_value() && parent->peek().value().type == TokenType::close_brace &&
             parent->peek(1).has_value() && parent->peek(1).value().type == TokenType::semi;
+    }
+
+    bool is_decorator(ParentParser* parent) {
+        return parent->peek().has_value() && parent->peek().value().type == TokenType::hash &&
+            parent->peek(1).has_value() && parent->peek(1).value().type == TokenType::ident &&
+            parent->peek(2).has_value() && parent->peek(2).value().type == TokenType::open_brace;
+    }
+
+    bool is_frame_declaration(ParentParser* parent) {
+        return parent->peek().has_value() && 
+            parent->peek().value().type == TokenType::frame;
+    }
+
+    bool is_if_statement(ParentParser* parent) {
+        return (
+            parent->peek().has_value() &&
+            parent->peek().value().type == TokenType::t_if
+        ) || (
+            parent->peek().has_value() &&
+            parent->peek().value().type == TokenType::t_else
+        );
     }
 };

@@ -1,5 +1,8 @@
 Array<Int> values = [1, 2, 3];
-values.map(=> (value) {});
+
+values.map(=> (Int value) {
+    printc(value);
+});
 
 for(Int i = 0; i < values.length; i++) {}
 

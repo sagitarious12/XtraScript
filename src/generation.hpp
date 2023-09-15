@@ -1,6 +1,6 @@
 #pragma once
 
-#include "parser.hpp"
+#include "parser/nodes.hpp"
 #include <cassert>
 #include <unordered_map>
 
@@ -24,6 +24,26 @@ public:
 
             void operator()(const NodeTermStringLit* term_string_lit) const {
                 gen->add("\"" + term_string_lit->string_lit.value.value() + "\"");
+            }
+
+            void operator()(const NodeTermObjectLit* term_obj_lit) const {
+                std::cerr << "Object Lit Generation Not Implemented" << std::endl;
+            }
+
+            void operator()(const NodeTermArrayLit* term_array_lit) const {
+                std::cerr << "Array Lit Generation Not Implemented" << std::endl;
+            }
+
+            void operator()(const NodeTermUndefined* term_undefined) const {
+                std::cerr << "Undefind Lit generation not implemented" << std::endl;
+            }
+
+            void operator()(const NodeTermNull* term_null) const {
+                std::cerr << "Null Lit Generation not implemented" << std::endl;
+            }
+
+            void operator()(const NodeTermBooleanLit* term_boolean) const {
+                std::cerr << "Boolean Not Yet Implemented" << std::endl;
             }
         };
         TermVisitor visitor({.gen = this});
@@ -135,10 +155,10 @@ public:
                 }
             }
 
-            void operator()(const NodeStatementPrintConsole* stmt_print_console) const {
-                gen->add("console.log(", true);
-                gen->generate_expression(stmt_print_console->expr);
-                gen->add(");\n");
+            void operator()(const NodeBuiltinFunction* stmt_builtin) const {
+                // gen->add("console.log(", true);
+                // gen->generate_expression(stmt_print_console->expr);
+                // gen->add(");\n");
             }
 
             void operator()(const NodeStatementTake* stmt_program) const {
@@ -169,6 +189,18 @@ public:
 
             void operator()(const NodeDiscard* discard) const {
                 std::cout << "should never get here" << std::endl;
+            }
+
+            void operator()(const NodeStatementDecorator* stmt_decorator) const {
+                std::cerr << "Decorator Not Yet Implemented" << std::endl;
+            }
+
+            void operator()(const NodeStatementFrame* stmt_frame) const {
+                std::cerr << "Frame Not Yet Implemented" << std::endl;
+            }
+
+            void operator()(const NodeIfElseIfElse* stmt_if_else) const {
+                std::cerr << "No If Statement Has Been Implemented" << std::endl;
             }
         };
 

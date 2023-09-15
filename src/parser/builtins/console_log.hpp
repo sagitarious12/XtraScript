@@ -1,14 +1,14 @@
 #pragma once
 
 #include "../parent_parser.hpp"
-#include "../parse_expression.hpp"
+#include "../expression/parse_expression.hpp"
 
 class ParseConsoleLog {
 public:
     ParseConsoleLog(){}
 
-    std::optional<NodeStatementPrintConsole*> parseNode(ParentParser* parent) {
-        auto stmt_builtin_function = parent->m_allocator.alloc<NodeStatementPrintConsole>();
+    std::optional<NodePrintConsole*> parseNode(ParentParser* parent) {
+        auto stmt_builtin_function = parent->m_allocator.alloc<NodePrintConsole>();
         
         parent->try_consume(TokenType::ident);
         parent->try_consume(TokenType::open_paren);

@@ -1,0 +1,10 @@
+<div class="awesome-class">
+    <div class="sub-awesome-class">
+        Hello {{getDisplayValue() + addedNumber}} {{getSomeText()}}
+    </div>
+    <MySubComponent
+        [parentValue]="{{displayValue}}"
+        (emitter)="{{updateDisplayValue}}"
+    >
+    </MySubComponent>
+</div>

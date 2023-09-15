@@ -3,8 +3,8 @@
 #include <iomanip>
 
 #include "parent_parser.hpp"
-#include "parse_statement.hpp"
-#include "parse_file.hpp"
+#include "statement/parse_statement.hpp"
+#include "statement/parse_file.hpp"
 
 class ParseProgram {
 public:
@@ -20,15 +20,14 @@ public:
         while (parent->peek().has_value()) {
             auto statement = std::make_unique<ParseStatement>();
             if (auto stmt = statement.get()->parseNode(parent)) {
+                if (auto discard = std::holds_alternative<NodeDiscard*>(stmt.value()->value)) {
+                    continue;
+                }
                 program.stmts.push_back(stmt.value());
             }
             else {
-                std::cerr << "Invalid statement" << std::endl;
+                std::cerr << "Invalid statement found on line: " << parent->peek().value().lineNumber + 1 << std::endl;
                 std::cerr << "Invalid " << token_names.at(as_integer(parent->peek().value().type)) << std::endl;
-                if (parent->peek().value().type == TokenType::ident) {
-                    auto value = parent->try_consume(TokenType::ident).value();
-                    std::cerr << value.value.value_or("default") << std::endl;
-                }
                 exit(EXIT_FAILURE);
             }
         }

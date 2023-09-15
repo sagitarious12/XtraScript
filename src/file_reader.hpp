@@ -4,6 +4,7 @@
 #include <sstream>
 #include <fstream>
 #include <cstring>
+#include <sys/stat.h>
 
 // TODO make the file reader return a struct
 // the struct will be a map of both 
@@ -47,6 +48,11 @@ public:
     }
 
     return m_root_path + path;
+  }
+
+  inline bool file_exists (const std::string& name) {
+    struct stat buffer;   
+    return (stat (get_base_filepath(name).c_str(), &buffer) == 0); 
   }
 private:
 
