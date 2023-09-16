@@ -1,12 +1,13 @@
 {
   "configurations": [
-    
     {
       "name": "(gdb) Launch",
       "request": "launch",
       "type": "cppdbg",
       "program": "${workspaceFolder}/build/xtra",
-      "args": ["${workspaceFolder}/src/xtrascript/main.xs"],
+      "args": [
+        "${workspaceFolder}/src/xtrascript/main.xs"
+      ],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],
@@ -30,7 +31,9 @@
       "request": "launch",
       "type": "cppdbg",
       "program": "${workspaceFolder}/build/xtra",
-      "args": ["${workspaceFolder}/src/xtrascript/index.html"],
+      "args": [
+        "${workspaceFolder}/src/xtrascript/index.html"
+      ],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],

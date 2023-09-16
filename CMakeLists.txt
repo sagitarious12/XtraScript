@@ -15,3 +15,4 @@ include(CPack)
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 
+SET(CMAKE_CXX_STANDARD 17)
