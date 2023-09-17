@@ -7,20 +7,20 @@ export interface FrameChanges {
     }
 }
 
-// export interface FrameArgs {
-//     styles: string;
-//     markup: ElementData[];
-//     marker: string;
-// }
+export interface FrameArgs {
+    styles: string;
+    markup: ElementData[];
+    marker: string;
+}
 
 export interface ConstructorArgs {
     prop: number; 
     value: void;
 }
 
-export function Frame(/*frameArgs: FrameArgs*/) {
+export function Frame(frameArgs: FrameArgs) {
     function frame(constructor) {
-        function frameConstructor(args) {
+        function frameConstructor() {
             const finalArgs = constructor
                 .prototype
                 .constructor
@@ -64,6 +64,9 @@ export function Frame(/*frameArgs: FrameArgs*/) {
             return constructedValue;
         }
         
+        Object.defineProperty(frameConstructor, 'styles', { value: frameArgs.styles, writable: false });
+        Object.defineProperty(frameConstructor, 'markup', { value: frameArgs.markup, writable: false });
+        Object.defineProperty(frameConstructor, 'marker', { value: frameArgs.marker, writable: false });
         Object.defineProperty(frameConstructor, 'name', {value: constructor.name, writable: false});
         Object.defineProperty(frameConstructor, 'isFrame', { value: true, writable: false });
         return <any>frameConstructor;

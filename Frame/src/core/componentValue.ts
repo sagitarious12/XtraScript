@@ -7,7 +7,7 @@ export const isNumeric = (str: any) => {
            !isNaN(parseFloat(str));
 }
 
-export const getComponentValue = (component: isClass, statement: Statement): string => {
+export const getComponentValue = (component: void, statement: Statement): string => {
     let attributeValue: string = "";
     if (statement.isFunction) {
         let value = component[statement.value]();

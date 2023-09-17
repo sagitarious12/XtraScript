@@ -7,41 +7,105 @@
 // import { Prop } from "./decorators/prop";
 // import { ElementData } from "./types/baseTypes";
 
+import { createWebPage } from './core/createWebPage';
 import * as Dep from './core/dependency-injector';
+import { Capsule } from './decorators/capsule';
 import { Frame } from './decorators/frame';
 import { Inject, Injectable } from './decorators/injectable';
 import { Component } from './types/baseTypes';
 
+// Needs to be the first thing that occurs in the build of Frame.
 const depinj = new Dep.DependencyInjector();
 (window as any).dependencies = depinj;
+
+
 @Injectable()
 class Something {
-    value: string = 'Hello World';
+    private value: string = 'World!';
+
+    getWorld = (): string => {
+        return this.value;
+    }
 }
 
-@Injectable()
-class SomethingElse {
-    value: string = "Another Hello World";
-
+@Frame({
+    styles: `
+.super-cool {
+    width: 75px;
+    background: pink;
+    color: black;
+}
+    `,
+    markup: [
+        {
+            attributes: [{key: 'class', value: 'super-cool'}],
+            children: [],
+            selector: 'div',
+            usedInComponent: SuperCool,
+            content: {
+                key: '', value: 'Hello from {{value}}', isExpression: true
+            }
+        }
+    ],
+    marker: 'FrameSuperCool'
+})
+class SuperCool {
+    value = 'Super Cool Component';
     constructor(@Inject(Something) something: Something) {
-        console.log(something.value);
-        something.value = "Another Thing";
+        console.log(something.getWorld());
     }
 }
 
-@Frame()
+@Frame({
+    styles: `
+.something {
+    width: 100px;
+    height: 100px;
+    background: blue;
+    color: white;
+}
+    `,
+    markup: [
+        {
+            attributes: [{key: 'class', value: 'something'}],
+            children: [
+                {
+                    attributes: [],
+                    children: [],
+                    selector: 'FrameSuperCool',
+                    usedInComponent: Another,
+                    content: {key: '', value: ''},
+                    usesComponent: SuperCool
+                }
+            ],
+            selector: 'div',
+            usedInComponent: Another,
+            content: {
+                key: '', value: 'Hello {{value}}', isExpression: true
+            }
+        }
+    ],
+    marker: 'FrameAnother'
+})
 class Another {
-    constructor(
-        @Inject(Something) something: Something,
-        @Inject(SomethingElse) somethingElse: SomethingElse
-    ) {
-        console.log(something.value);
-        console.log(somethingElse.value);
+    value: string;
+    constructor(@Inject(Something) something: Something) {
+        this.value = something.getWorld();
+        console.log(this.value);
     }
 }
 
-depinj.instantiate(Another);
+@Capsule({
+    Capsules: [],
+    Components: [
+        Another
+    ],
+    Exports: [],
+    Init: Another
+})
+class MainCapsule {}
 
+createWebPage(MainCapsule);
 
 // @Frame()
 // class Component {
@@ -78,7 +142,7 @@ depinj.instantiate(Another);
 //     }
 // }
 
-// const data: ElementData[] = [
+// const data = [
 //     {
 //         attributes: [
 //             {
@@ -219,6 +283,3 @@ depinj.instantiate(Another);
 //         `
 //     }
 // ];
-
-// createWebPage(data);
-

@@ -26,8 +26,6 @@ export interface ElementData {
     content?: Statement;
     usedInComponent: Component;
     usesComponent?: Component;
-    componentArgs: any[];
-    styleContent?: string;
 }
 
 export type isClass = HTMLElement;

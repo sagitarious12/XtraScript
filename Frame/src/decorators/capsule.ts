@@ -1,10 +1,10 @@
 import { Component } from "../types/baseTypes";
 
 export interface CapsuleArgs {
-  Injectable: Component[];
-  Component: Component[];
-  Capsule: Component[];
-  Export: Component[];
+  Components?: Component[];
+  Capsules?: Component[];
+  Exports?: Component[];
+  Init?: Component;
 }
 
 export function Capsule(capsuleArgs: CapsuleArgs) {
@@ -13,6 +13,9 @@ export function Capsule(capsuleArgs: CapsuleArgs) {
       let constructed = new constructor(...args);
       
       return constructed;
+    }
+    if (capsuleArgs.Init) {
+      Object.defineProperty(moduleConstructor, 'initComponent', { value: capsuleArgs.Init, writable: false });
     }
     Object.defineProperty(moduleConstructor, 'name', { value: constructor.name, writable: false });
     Object.defineProperty(moduleConstructor, 'isCapsule', { value: true, writable: false });

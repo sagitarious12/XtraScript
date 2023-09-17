@@ -33,7 +33,7 @@ export class DependencyInjector {
   }
 
   instantiate = (service: Component): void => {
-    return new service();
+    return new service.prototype.constructor();
   }
 
   getService = (component: string): any => {

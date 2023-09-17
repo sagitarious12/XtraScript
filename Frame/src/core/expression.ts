@@ -23,7 +23,7 @@ export const getExpressions = (value: string): ExpressionString[] => {
 }
 
 
-export const parseExpressionConditional = (component: isClass, expression: ExpressionString): string => {
+export const parseExpressionConditional = (component: void, expression: ExpressionString): string => {
     let tokens: Token[] = [];
     let chars = expression.value.split("");
     for (let i = 0; i < chars.length; i++) {

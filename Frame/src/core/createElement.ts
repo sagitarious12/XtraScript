@@ -1,21 +1,24 @@
-import { ElementData, isClass, Statement } from "../types/baseTypes";
+import { ElementData, Statement } from "../types/baseTypes";
+import { htmlTags } from "../types/tags";
 import { getComponentValue } from "./componentValue";
 import { createOnChanges } from "./onChanges";
 
-export const createElement = (data: ElementData, component: isClass, shadow: ShadowRoot | null = null, parentComponent: isClass | null = null): HTMLElement => {
+export const createElement = (data: ElementData, component: void, shadow: ShadowRoot | null = null, parentComponent: void | null = null): HTMLElement => {
 
-    const el = document.createElement(data.selector);
+    const camelToDashCase = str => str.split(/\.?(?=[A-Z])/).join('-').toLowerCase();
+    const el = document.createElement(htmlTags.includes(data.selector) ? data.selector : camelToDashCase(data.selector));
 
     let shadowRoot;
     if (shadow === null) {
-        shadowRoot = el.attachShadow({ mode: 'open'});
+        shadowRoot = el.attachShadow({ mode: 'closed'});
     } else {
         shadowRoot = shadow;
     }
     
-    if (data.styleContent) {
+    console.log((data as any).styleContent);
+    if ((data as any).styleContent) {
         const style = document.createElement('style');
-        style.textContent = data.styleContent;
+        style.textContent = (data as any).styleContent;
         shadowRoot.appendChild(style);
     }
 
@@ -57,11 +60,17 @@ export const createElement = (data: ElementData, component: isClass, shadow: Sha
     }
 
     data.children.forEach((child: ElementData) => {
-        let childComponent: isClass;
+        let childComponent: void;
         if (!isChildComponentSame(child) && child.usesComponent) {
-            childComponent = new (child.usesComponent as any)(...data.componentArgs);
+            console.log(child.usesComponent.prototype);
+            childComponent = (window as any).dependencies.instantiate(child.usesComponent);
+            console.log(child.usesComponent.prototype);
+            child.usesComponent.prototype.constructor.markup.forEach((element: ElementData) => {
+                child.children.push(element);
+            })
+            child = Object.assign(child, {styleContent: child.usesComponent.prototype.constructor.styles});
         } else {
-            childComponent = {} as HTMLElement; // should not matter, this should never be used.
+            childComponent; // should not matter, this should never be used.
         }
 
         if (shadow !== null) {
