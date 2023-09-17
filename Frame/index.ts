@@ -15,9 +15,4 @@ if (Bun.argv[2] === 'serve') {
         entrypoints: ['./src/index.ts'],
         outdir: './build'
     });
-} else if (Bun.argv[2] === 'build-parser') {
-    const build = await Bun.build({
-        entrypoints: ['./src/parser/index.ts'],
-        outdir: './parserBuild'
-    })
 }

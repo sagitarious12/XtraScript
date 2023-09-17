@@ -17,7 +17,7 @@ export interface Statement {
     isExpression?: boolean;
 }
 
-export type Component = ((...args: any[]) => void) | (() => void);
+export type Component = (new (...args: any[]) => void) | (new () => void);
 
 export interface ElementData {
     selector: string;

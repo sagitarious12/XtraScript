@@ -1,3 +1,4 @@
+import { ElementData } from "../types/baseTypes";
 
 export interface FrameChanges {
     [key: string]: {
@@ -6,10 +7,27 @@ export interface FrameChanges {
     }
 }
 
-export function Frame() {
+// export interface FrameArgs {
+//     styles: string;
+//     markup: ElementData[];
+//     marker: string;
+// }
+
+export interface ConstructorArgs {
+    prop: number; 
+    value: void;
+}
+
+export function Frame(/*frameArgs: FrameArgs*/) {
     function frame(constructor) {
-        function frameConstructor(...args: any[]) {
-            let constructedValue = new constructor(...args);
+        function frameConstructor(args) {
+            const finalArgs = constructor
+                .prototype
+                .constructor
+                .constructorArgs
+                .sort((a: ConstructorArgs, b: ConstructorArgs) => a.prop > b.prop ? 1 : -1)
+                .map((value: ConstructorArgs) => value.value);
+            let constructedValue = new constructor(...finalArgs);
             let previous = JSON.parse(JSON.stringify(constructedValue));
             let originalOnDestroy = constructedValue.onDestroy;
             let originalOnChanges = constructedValue.onChanges;
@@ -45,9 +63,9 @@ export function Frame() {
             }
             return constructedValue;
         }
-
         
         Object.defineProperty(frameConstructor, 'name', {value: constructor.name, writable: false});
+        Object.defineProperty(frameConstructor, 'isFrame', { value: true, writable: false });
         return <any>frameConstructor;
     }
     return frame;
