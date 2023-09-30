@@ -1,44 +1,22 @@
-// #include <fstream>
-#include <iostream>
-#include <optional>
-#include <sstream>
-#include <vector>
+#if FR_RUN_TESTING == 1
+#include "testing/test_mounting.hpp"
+#else
+#include "harnesses/harness_commands.hpp"
+#endif
 
-#include "./generation.hpp"
-#include "./file_reader.hpp"
 
 int main(int argc, char* argv[])
-{
-    if (argc != 2) {
-        std::cerr << "Incorrect usage. Correct usage is..." << std::endl;
-        std::cerr << "xtra <input.xs>" << std::endl;
+{   
+#if FR_RUN_TESTING == 1
+    Frame::TestMounter testing;
+    bool testResult = testing.mount();
+    if (testResult) {
+        return EXIT_SUCCESS;
+    } else {
         return EXIT_FAILURE;
     }
-
-    Files files;
-    std::string contents = files.read_file(argv[1]);
-
-    Tokenizer tokenizer(std::move(contents));
-    std::vector<Token> tokens = tokenizer.tokenize();
-
-    Parser parser(std::move(tokens), files);
-    std::optional<NodeProgram> program = parser.parse_program("main", argv[1]);
-
-    if (!program.has_value()) {
-        std::cerr << "Invalid program" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    // Generator generator(program.value());
-    // {
-    //     std::fstream file("build.js", std::ios::out);
-    //     file << generator.generate_program();
-    // }
-
-    // system("nasm -felf64 out.asm");
-    // system("ld -o out out.o");
-
-    std::cout << "breakpoint" << std::endl;
-
+#else
+    CommandHarness harness(argc, argv);
     return EXIT_SUCCESS;
+#endif
 }
