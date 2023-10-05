@@ -1,0 +1,10 @@
+.FrameWrapper {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+    border: 4px solid #ff00ff;
+    background: #fafafa;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}

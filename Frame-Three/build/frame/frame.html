@@ -1,0 +1,8 @@
+<div class="FrameWrapper">
+    <span>
+        {{text}} {{value}}
+    </span>
+    <frame-child-component [some_text]="{{secondaryContent}}">
+        <slot slot="content">{{text}}</slot>
+    </frame-child-component>
+</div>
