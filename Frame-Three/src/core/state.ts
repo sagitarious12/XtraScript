@@ -1,7 +1,7 @@
 import { Injectable } from "../decorators";
 import { Constructor } from "./types";
 
-class Term<T> {
+export class Term<T> {
     private v: T | null;
     
     constructor(v: T | null) {
@@ -9,7 +9,7 @@ class Term<T> {
     }
 
     get value() {
-        return this.value;
+        return this.v;
     }
 
     set setValue(v: T) {
@@ -22,82 +22,99 @@ interface Terms {
     term: Term<any>
 }
 
-class Contract {
+interface Prox {
+    uuid: string;
+    proxy: any;
+    cb: (value: any) => void;
+}
+
+export type ContractTerms<T> = {onChanges: (cb: (value: T) => void) => void, unsubscribe: () => void} & T;
+
+export abstract class Contract<T> {
     protected terms: Terms[];
+    private proxies: Prox[] = [];
 
-    public getContract = () => {
-        return this.terms.reduce<{[key: string]: any}>((acc: {[key: string]: any}, term: Terms) =>  {
-            return Object.assign(acc, { [term.name]: term.term });
-        }, {});
+    public getTerms = (): ContractTerms<T> => {
+
+        const _this = this;
+
+        const resultTerms = this.terms.reduce<T>((acc: T, term: Terms) =>  {
+            return Object.assign(acc as any, { [term.name]: term.term.value } as any) as T;
+        }, {} as T);
+
+        resultTerms["uuid"] = Symbol();
+
+        resultTerms["unsubscribe"] = function() {
+            _this.proxies = _this.proxies.filter((p: Prox) => p.uuid !== this.uuid);
+        }
+
+        resultTerms["onChanges"] = function(cb: (value: T) => void) {
+            _this.proxies.push(
+                {
+                    uuid: this.uuid,
+                    cb,
+                    proxy: new Proxy(this, {
+                        set: function (target: T, key: string, value: any) {
+                            target[key] = value;
+                            cb(target);
+                            return true;
+                        }
+                    })
+                }
+            )
+        };
+
+        return resultTerms as ContractTerms<T>;
     }
 
-    public getTerm = <T>(name: string): Term<T> | null => {
-        return this.terms.find((term: Terms) => term.name === name)?.term.value || null;
+    public getTerm = <T>(name: string): T => {
+        return this.terms.find((term: Terms) => term.name === name)?.term.value;
     }
 
-    protected setTerm = <T>(name: string, value: T): void => {
+    public setTerm = <T>(name: string, value: T): void => {
         const terms = this.terms.find((term: Terms) => term.name === name);
         if (terms) {
-            terms.term.setValue(value);
+            terms.term.setValue = value;
+            if (this.proxies.length > 0) {
+                this.proxies.forEach((prox: Prox) => {
+                    prox.proxy[name] = value;
+                });
+            }
         }
     }
 }
 
-class TestContract extends Contract {
-    constructor(){
-        super();
-        this.terms = [{ name: 'text', term: new Term<string>('Hello World From Test Contract') }];
-    }
-
-
-}
-
 @Injectable()
 export class StateService {
-    public getContract = (c: Constructor<Contract>) => {
+    public getContract = <T>(c: Constructor<T>): T | undefined => {
         return State.getContract(c);
     }
 }
 
 interface StateContractStorage {
     name: string;
-    contract: Contract;
+    contract: Contract<any>;
 }
 
 export class State {
     static isState: boolean = true;
     private static contracts: StateContractStorage[];
 
-    static setStates = (contracts: Constructor<Contract>[]): Constructor<void> => {
-        this.contracts = contracts.map((c: Constructor<Contract>) => {
-            return {
-                name: c.prototype.constructor.name,
-                contract: new c()
+    static setStates = (contracts: Constructor<any>[]): Constructor<void> => {
+        this.contracts = contracts.map((c: Constructor<any>) => {
+            const contract = new c();
+            if ('getTerms' in contract && 'getTerm' in contract) {
+                return {
+                    name: c.prototype.constructor.name,
+                    contract: contract
+                }
             }
-        });
-
+            return null
+        }).filter((i) => i !== null) as StateContractStorage[];
         return State as any;
     }
 
-    static getContract = (c: Constructor<Contract>): Contract | undefined => {
-        return this.contracts.find((value: StateContractStorage) => value.name === c.prototype.constructor.name)?.contract;
+    static getContract = <T>(c: Constructor<T>): T | undefined => {
+        return this.contracts.find((value: StateContractStorage) => value.name === c.prototype.constructor.name)?.contract as T | undefined;
     }
 }
-
-
-
-// usage
-/**
- * 
-
-@frame({})
-class SomeFrame implements onInit {
-    const state = State.get(SomeContract);
-
-    onInit() {
-
-    }
-}
-
-
- */

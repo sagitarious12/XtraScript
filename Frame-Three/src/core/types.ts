@@ -18,7 +18,7 @@ export interface ConstructorArgs {
     value: void;
 }
 
-type OnInitFunction = ((changes?: FrameChanges) => void) | (() => void);
+type OnInitFunction = () => void;
 type OnChangesFunction = ((changes?: FrameChanges) => void) | (() => void);
 type OnDestroyFunction = () => void;
 

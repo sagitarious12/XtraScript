@@ -319,6 +319,7 @@ var defineElement = (selector, html, styles, component) => {
     component;
     changableNodes = [];
     hasRunChangeDetection = false;
+    eventListeners = [];
     static attrs = [...component.prototype["inputProps"] ? component.prototype["inputProps"] : []];
     static get observedAttributes() {
       return this.attrs;
@@ -389,6 +390,9 @@ var defineElement = (selector, html, styles, component) => {
       }
     }
     disconnectedCallback() {
+      this.eventListeners.forEach((ev) => {
+        ev.node.removeEventListener(ev.eventName, ev.eventFn);
+      });
       if (this.component.onDestroy) {
         this.component.onDestroy();
       }
@@ -424,9 +428,11 @@ var defineElement = (selector, html, styles, component) => {
               if (eventNames.includes(eventName)) {
                 let fnName = attr.nodeValue;
                 if (fnName && this.component[fnName]) {
-                  node.addEventListener(eventName, () => {
+                  const eventFn = () => {
                     this.component[fnName]();
-                  });
+                  };
+                  node.addEventListener(eventName, eventFn);
+                  this.eventListeners.push({ eventName, eventFn, node });
                 } else {
                   console.error(`Invalid ${eventName} event listener: function "${fnName}" does not exist on type ${this.component.constructor.name}`);
                 }
@@ -760,6 +766,93 @@ class RouterFeed extends HTMLElement {
 }
 customElements.define("router-feed", RouterFeed);
 
+// src/core/state.ts
+class Term {
+  v;
+  constructor(v) {
+    this.v = v;
+  }
+  get value() {
+    return this.v;
+  }
+  set setValue(v) {
+    this.v = v;
+  }
+}
+
+class Contract {
+  terms;
+  proxies = [];
+  getTerms = () => {
+    const _this = this;
+    const resultTerms = this.terms.reduce((acc, term) => {
+      return Object.assign(acc, { [term.name]: term.term.value });
+    }, {});
+    resultTerms["uuid"] = Symbol();
+    resultTerms["unsubscribe"] = function() {
+      _this.proxies = _this.proxies.filter((p) => p.uuid !== this.uuid);
+    };
+    resultTerms["onChanges"] = function(cb) {
+      _this.proxies.push({
+        uuid: this.uuid,
+        cb,
+        proxy: new Proxy(this, {
+          set: function(target, key, value) {
+            target[key] = value;
+            cb(target);
+            return true;
+          }
+        })
+      });
+    };
+    return resultTerms;
+  };
+  getTerm = (name) => {
+    return this.terms.find((term) => term.name === name)?.term.value;
+  };
+  setTerm = (name, value) => {
+    const terms = this.terms.find((term) => term.name === name);
+    if (terms) {
+      terms.term.setValue = value;
+      if (this.proxies.length > 0) {
+        this.proxies.forEach((prox) => {
+          prox.proxy[name] = value;
+        });
+      }
+    }
+  };
+}
+
+class StateService {
+  getContract = (c) => {
+    return State.getContract(c);
+  };
+}
+StateService = __decorateClass([
+  Injectable()
+], StateService);
+
+class State {
+  static isState = true;
+  static contracts;
+  static setStates = (contracts) => {
+    this.contracts = contracts.map((c) => {
+      const contract = new c;
+      if (("getTerms" in contract) && ("getTerm" in contract)) {
+        return {
+          name: c.prototype.constructor.name,
+          contract
+        };
+      }
+      return null;
+    }).filter((i) => i !== null);
+    return State;
+  };
+  static getContract = (c) => {
+    return this.contracts.find((value) => value.name === c.prototype.constructor.name)?.contract;
+  };
+}
+
 // src/main.ts
 class ComponentService {
   value = "Hello From Component Service";
@@ -779,8 +872,13 @@ class Component {
   arr2 = [1, 2, 3];
   arr3 = ["hello", "world"];
   arr4 = ["Slot Value 1", "Slot Value 2"];
-  constructor(componentService, routerService) {
+  testStateContract;
+  constructor(componentService, routerService, state2) {
     this.router = routerService;
+    this.testStateContract = state2.getContract(TestState);
+    setTimeout(() => {
+      this.testStateContract.setTestValue("Some New Value From Test Term");
+    }, 2000);
     setTimeout(() => {
       this.arr = [...this.arr, { obj: componentService.getValue() }];
     }, 2000);
@@ -799,15 +897,25 @@ Component = __decorateClass([
     styles: "./frame/frame.css"
   }),
   __decorateParam(0, Inject(ComponentService)),
-  __decorateParam(1, Inject(RouterService))
+  __decorateParam(1, Inject(RouterService)),
+  __decorateParam(2, Inject(StateService))
 ], Component);
 
 class ChildComponent {
   some_text = "Hello Child Component";
   router;
-  constructor(routerService) {
+  terms;
+  testValue = "Default Test Value Value";
+  constructor(routerService, state2) {
     this.router = routerService;
+    this.terms = state2.getContract(TestState)?.getTerms();
+    this.terms.onChanges((value) => {
+      this.testValue = value.test;
+    });
   }
+  onDestroy = () => {
+    this.terms.unsubscribe();
+  };
 }
 ChildComponent = __decorateClass([
   Frame({
@@ -815,7 +923,8 @@ ChildComponent = __decorateClass([
     markup: "./frame-child/child.html",
     styles: "./frame-child/child.css"
   }),
-  __decorateParam(0, Inject(RouterService))
+  __decorateParam(0, Inject(RouterService)),
+  __decorateParam(1, Inject(StateService))
 ], ChildComponent);
 
 class ChildComponentTwo {
@@ -828,6 +937,16 @@ ChildComponentTwo = __decorateClass([
     styles: "./frame-child-two/child.css"
   })
 ], ChildComponentTwo);
+
+class TestState extends Contract {
+  constructor() {
+    super();
+    this.terms = [{ name: "test", term: new Term("Some Value From Test Term") }];
+  }
+  setTestValue = (value) => {
+    this.setTerm("test", value);
+  };
+}
 var routes = [
   {
     component: ChildComponent,
@@ -847,7 +966,8 @@ class ComponentCapsule {
 ComponentCapsule = __decorateClass([
   Capsule({
     Capsules: [
-      RouterCapsule.setRootRoutes(routes)
+      RouterCapsule.setRootRoutes(routes),
+      State.setStates([TestState])
     ],
     Components: [
       Component,

@@ -4,6 +4,7 @@
 import { Capsule, Frame, Inject, Injectable, Prop } from "./decorators";
 import { FrameChanges, OnChanges, OnDestroy, OnInit } from "./core/types";
 import { Route, RouterCapsule, RouterService } from './core/router';
+import { Contract, ContractTerms, State, StateService, Term } from "./core/state";
 
 
 
@@ -35,11 +36,18 @@ class Component {
 
     arr4: any[] = ["Slot Value 1", "Slot Value 2"];
 
+    testStateContract: TestState;
+
     constructor(
         @Inject(ComponentService) componentService: ComponentService,
-        @Inject(RouterService) routerService: RouterService
+        @Inject(RouterService) routerService: RouterService,
+        @Inject(StateService) state: StateService
     ) {
         this.router = routerService;
+        this.testStateContract = state.getContract(TestState) as TestState;
+        setTimeout(() => {
+            this.testStateContract.setTestValue('Some New Value From Test Term');
+        }, 2000);
         setTimeout(() => {
             this.arr = [...this.arr, {obj: componentService.getValue()}]
         }, 2000);
@@ -59,14 +67,26 @@ class Component {
     markup: './frame-child/child.html',
     styles: './frame-child/child.css'
 })
-class ChildComponent {
+class ChildComponent implements OnDestroy {
     some_text: string = "Hello Child Component";
-    router: RouterService
+    router: RouterService;
+
+    terms: ContractTerms<TestStateType>;
+    testValue: string = "Default Test Value Value";
 
     constructor(
-        @Inject(RouterService) routerService: RouterService
+        @Inject(RouterService) routerService: RouterService,
+        @Inject(StateService) state: StateService
     ) {
         this.router = routerService;
+        this.terms = state.getContract(TestState)?.getTerms() as ContractTerms<TestStateType>;
+        this.terms.onChanges((value: TestStateType) => {
+            this.testValue = value.test;
+        });
+    }
+
+    onDestroy = () => {
+        this.terms.unsubscribe();
     }
 }
 
@@ -77,6 +97,21 @@ class ChildComponent {
 })
 class ChildComponentTwo {
     some_text: string = "Hello Child Component";
+}
+
+interface TestStateType {
+    test: string;
+}
+
+class TestState extends Contract<TestStateType> {
+    constructor() {
+        super();
+        this.terms = [{name: 'test', term: new Term('Some Value From Test Term')}];
+    }
+
+    setTestValue = (value: string) => {
+        this.setTerm('test', value);
+    }
 }
 
 const routes: Route[] = [
@@ -90,7 +125,8 @@ const routes: Route[] = [
 
 @Capsule({
     Capsules: [
-        RouterCapsule.setRootRoutes(routes)
+        RouterCapsule.setRootRoutes(routes),
+        State.setStates([TestState])
     ],
     Components: [
         Component,
