@@ -40,7 +40,7 @@ export type BuiltinInterfaces<T> = T & {
     onDestroy?: OnDestroyFunction
 };
 
-export type Constructor<T> = (new (...args: any[]) => BuiltinInterfaces<T>) | (new () => BuiltinInterfaces<T>);
+export type Constructor<T> = (new (...args: any) => BuiltinInterfaces<T> | T) | (new () => BuiltinInterfaces<T> | T);
 
 export interface ExpressionString {
     value: string;
@@ -55,8 +55,11 @@ export enum TokenType {
     div,
     open_paren,
     close_paren,
+    open_bracket,
+    close_bracket,
     comma,
-    function
+    function,
+    dot
 }
 
 export interface Token {

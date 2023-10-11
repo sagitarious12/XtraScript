@@ -7,4 +7,12 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    row-gap: 10px;
+}
+
+.ArrayWrapper {
+    width: calc(100% - 4px);
+    font-size: 25px;
+    background: #e7e7e7;
+    border: 2px solid black;
 }

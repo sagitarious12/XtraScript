@@ -1,3 +1,4 @@
+import { ChangableNode } from "./element";
 import { BuiltinInterfaces, ExpressionString, Token, TokenType } from "./types";
 
 export const getExpressions = (value: string): ExpressionString[] => {
@@ -22,21 +23,32 @@ export const getExpressions = (value: string): ExpressionString[] => {
     return expressions
 }
 
-
-export const parseExpressionConditional = (component: BuiltinInterfaces<void>, expression: ExpressionString | ExpressionString[]): string => {
+export const parseExpressionConditional = (component: BuiltinInterfaces<void>, expression: ExpressionString | ExpressionString[], indexMap: {[key: string]: number} | null = null): string => {
     if (Array.isArray(expression)) {
         let result = '';
         for (let i = 0; i < expression.length; i++) {
             if (expression[i].isExpression) {
                 const tokens = getTokens(expression[i].value.split(''));
-                const parseResult = parseStatement(component, tokens);
-                result += parseResult + ' ';
+                const parseResult = parseStatement(component, tokens, indexMap);
+                if (parseResult !== undefined && parseResult !== null) {
+                    if ((parseResult as any).value) {
+                        result += (parseResult as any).value + ' ';
+                    } else {
+                        if (Array.isArray(parseResult)) {
+                            result += JSON.stringify(parseResult);
+                        } else {
+                            result += parseResult;
+                        }
+                    }
+                } else {
+                    console.error("Invalid parsed value:", expression[i].value);
+                }
             }
         }
         return result;
     } else {
         const tokens = getTokens(expression.value.split(''));
-        const result = parseStatement(component, tokens);
+        const result = parseStatement(component, tokens, indexMap);
         return result;
     }
     
@@ -97,6 +109,15 @@ const getTokens = (chars: string[]): Token[] => {
         } else if (chars[i] === '(') {
             tokens.push({type: TokenType.open_paren});
             continue;
+        } else if (chars[i] === '[') {
+            tokens.push({type: TokenType.open_bracket});
+            continue;
+        } else if (chars[i] === ']') {
+            tokens.push({type: TokenType.close_bracket});
+            continue;
+        } else if (chars[i] === '.') {
+            tokens.push({type: TokenType.dot});
+            continue;
         } else if (chars[i] === ')') {
             tokens.push({type: TokenType.close_paren});
             continue;} else if (chars[i] === ',') {
@@ -109,10 +130,9 @@ const getTokens = (chars: string[]): Token[] => {
     return tokens;
 }
 
-const parseStatement = (component: BuiltinInterfaces<void>, tokens: Token[]): string => {
+const parseStatement = (component: BuiltinInterfaces<void>, tokens: Token[], indexMap: {[key: string]: number} | null): string => {
     let i = 0;
-    const parse = (t: Token[]): string => {
-
+    const parse = (t: Token[], checkComponent: boolean = true): string => {
         let runningValue: any = '';
         if (t[i].type === TokenType.ident && i + 1 < t.length && t[i + 1].type === TokenType.open_paren) {
             const currentToken = t[i];
@@ -152,18 +172,38 @@ const parseStatement = (component: BuiltinInterfaces<void>, tokens: Token[]): st
             i++;
 
             runningValue = (component as any)[currentToken.value as string](...parseArgs);
+        } else if (t[i].type === TokenType.ident && i + 1 < t.length && t[i + 1].type === TokenType.open_bracket) {
+            const currentToken = t[i];
+            i++; // array name;
+            i++; // open bracket;
+
+            const bracketTokens: Token[] = [];
+            while (t[i].type !== TokenType.close_bracket) {
+                bracketTokens.push(t[i++]);
+            }
+            const bracketResult = parseStatement(component, bracketTokens, indexMap);
+
+            runningValue = (component as any)[currentToken.value as string][bracketResult];
+            i++;
+
         } else {
             // consume variable name;
-            if (t[i].value && (t[i].value as string)[0]=== '"') {
+            if (indexMap && t[i].type === TokenType.ident && indexMap[(t[i].value as string)] !== undefined) {
+                runningValue = indexMap[(t[i].value as string)];
+            } else if (t[i].value && (t[i].value as string)[0]=== '"') {
                 runningValue = t[i].value;
             } else if ((t[i].value as string)[0].match(/[0-9]/i)) {
                 runningValue = parseInt(t[i].value as string);
             } else {
                 try {
-                    runningValue = (component as any)[t[i].value as string];
+                    if (checkComponent) {
+                        runningValue = (component as any)[t[i].value as string];
+                    } else {
+                        runningValue = t[i].value;
+                    }
+                    i++
                 } catch (e) {
-                    console.log("RUNING VALUE", runningValue);
-                    return runningValue;
+                    return t[i].value as string;
                 }
             }
             i++;
@@ -185,9 +225,25 @@ const parseStatement = (component: BuiltinInterfaces<void>, tokens: Token[]): st
             else if (t[i].type === TokenType.div) {
                 i++;
                 return (parseFloat(runningValue) / parseFloat(parse(t))).toString();
+            } else if (t[i].type === TokenType.dot) {
+                i++;
+                const res = parse(t, false);
+                return runningValue[res];
             }
         } 
         return runningValue;
     }
     return parse(tokens);
+}
+
+export const shouldChangeTextNode = (node: ChangableNode): boolean => {
+    return true;
+}
+
+export const shouldChangeCustomNode = (node: ChangableNode): boolean => {
+    return true;
+}
+
+export const shouldChangeForNode = (node: ChangableNode): boolean => {
+    return true;
 }

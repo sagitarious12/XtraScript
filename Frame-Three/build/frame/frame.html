@@ -1,8 +1,33 @@
 <div class="FrameWrapper">
+    <button $click="child">Child Component</button>
+    <button $click="childTwo">Child Component Two</button>
+    <router-feed></router-feed>
+    <!-- <div>Array 1</div>
     <span>
-        {{text}} {{value}}
+        <div data-for="{{arr}}" data-index="i">
+            <div class="ArrayWrapper">{{arr[i].obj}}</div>
+        </div>
     </span>
-    <frame-child-component [some_text]="{{secondaryContent}}">
-        <slot slot="content">{{text}}</slot>
-    </frame-child-component>
+    <span>Array 2</span>
+    <span>
+        <div data-for="{{arr2}}" data-index="some">
+            <div class="ArrayWrapper">{{arr2[some]}}</div>
+        </div>
+    </span>
+    <span>Array 3</span>
+    <span>
+        <div data-for="{{arr3}}" data-index="thing">
+            <div class="ArrayWrapper">{{arr3[thing]}}</div>
+        </div>
+    </span>
+    <span>Array 4</span>
+    <span>
+        <div data-for="{{arr3}}" data-index="index">
+            <div class="ArrayWrapper">
+                <frame-child-component [some_text]="TODO">
+                    <span slot="content">{{arr3[index]}}</span>
+                </frame-child-component>
+            </div>
+        </div>
+    </span> -->
 </div>
